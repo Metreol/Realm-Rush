@@ -61,7 +61,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1857705836089249327, guid: 4ec16112b00bf844f8d80ea11f6112c4, type: 3}
       propertyPath: m_Name
-      value: TileV_roadStraight
+      value: TileV_roadStraight_UD
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 4ec16112b00bf844f8d80ea11f6112c4, type: 3}

@@ -5,46 +5,74 @@ using TMPro;
 [ExecuteAlways]
 public class CoordinateLabels : MonoBehaviour
 {
-    [SerializeField] private Color freeSpaceColor = Color.blue;
-    [SerializeField] private Color takenSpaceColor = Color.red;
+    [SerializeField] private Color defaultColor = Color.white;
+    [SerializeField] private Color blockedColor = Color.grey;    
+    [SerializeField] private Color exploredColor = Color.yellow;
+    [SerializeField] private Color pathColor = new Color(1f, 0.5f, 0f); // Orange
 
     private TextMeshPro label;
     private Vector2Int coordinates = new Vector2Int();
-    private Waypoint waypoint;
+    private GridManager gridManager;
+    private GridDebugger gridDebugger;
 
     private void Awake()
     {
+        gridManager = FindObjectOfType<GridManager>();
         label = GetComponent<TextMeshPro>();
-        label.enabled = false;
-        waypoint = GetComponentInParent<Waypoint>();
+        gridDebugger = FindObjectOfType<GridDebugger>();
+
+        if (Application.isPlaying)
+        {
+            label.enabled = gridDebugger.GetCoordinatesEnabledGame();
+        }
+        else
+        {
+            label.enabled = gridDebugger.GetCoordinatesEnabledEditor();
+        }
+    }
+
+    private void Start()
+    {
+        if (gridManager == null)
+        {
+            Debug.LogError("There is no GridManager object in the scene");
+            return;
+        }
+        else if (!gridManager.IsGridPopulated)
+        {
+            Debug.LogError("GridManager has not been populated");
+            return;
+        }
     }
 
     private void Update()
     {
         ToggleLabels();
-
-        if (!Application.isPlaying)
-        {
-            UpdateCoordinatesLabel();
-            UpdateObjectNames();
-            label.enabled = false; // Set this to false/true to turn off/on coordinate labels in Editor.
-        }
-
+        UpdateCoordinatesLabel();
+        UpdateObjectNames();
         LabelColor();
     }
 
     private void ToggleLabels()
     {
-        if (Input.GetKeyDown(KeyCode.G))
+        if (Application.isPlaying)
         {
-            label.enabled = !label.enabled;
+            label.enabled = gridDebugger.GetCoordinatesEnabledGame();
+        }
+        else
+        {
+            label.enabled = gridDebugger.GetCoordinatesEnabledEditor();
         }
     }
 
     private void UpdateCoordinatesLabel()
     {
-        coordinates.x = Mathf.RoundToInt(transform.parent.position.x / UnityEditor.EditorSnapSettings.move.x);
-        coordinates.y = Mathf.RoundToInt(transform.parent.position.z / UnityEditor.EditorSnapSettings.move.z);
+        if (gridManager == null)
+        {
+            return;
+        }
+        coordinates.x = Mathf.RoundToInt(transform.parent.position.x / gridManager.UnityGridSize);
+        coordinates.y = Mathf.RoundToInt(transform.parent.position.z / gridManager.UnityGridSize);
         label.text = coordinates.x + "," + coordinates.y;
     }
 
@@ -55,13 +83,26 @@ public class CoordinateLabels : MonoBehaviour
 
     private void LabelColor()
     {
-        if (waypoint.IsPlacable)
+        Node node = gridManager.GetNode(coordinates);
+
+        if (node != null)
         {
-            label.color = freeSpaceColor;
-        }
-        else
-        {
-            label.color = takenSpaceColor;
-        }
+            if (!node.isWalkable)
+            {
+                label.color = blockedColor;
+            }
+            else if (node.isPath)
+            {
+                label.color = pathColor;
+            }
+            else if (node.isExplored)
+            {
+                label.color = exploredColor;
+            }
+            else
+            {
+                label.color = defaultColor; // Walkable, but not path and not explored.
+            }
+        } 
     }
 }

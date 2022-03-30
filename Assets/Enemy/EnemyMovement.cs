@@ -6,36 +6,47 @@ using UnityEngine;
 public class EnemyMovement : MonoBehaviour
 {
     [SerializeField] [Range(0f, 5f)] private float speed = 1f;
-    [SerializeField] private List<Waypoint> path = new List<Waypoint>();
-    
-    private bool started;
-    private Enemy enemy;
 
-    private void Start()
+    private List<Node> path = new List<Node>();
+    private Enemy enemy;
+    private GridManager gridManager;
+    private Pathfinder pathfinder;
+
+    private void Awake()
     {
         enemy = GetComponent<Enemy>();
+        gridManager = FindObjectOfType<GridManager>();
+        pathfinder = FindObjectOfType<Pathfinder>();
     }
 
     void OnEnable()
     {
-        FindPath();
-        started = false;
-        StartCoroutine(FollowPath());
+        ReturnToStart();
+        RecalculatePath(true);
     }
 
-    private void FindPath()
+    private void RecalculatePath(bool reset)
     {
-        path.Clear();
-        
-        Waypoint[] waypoints = GameObject.FindGameObjectWithTag("Path") // Gets the object with tag "Path" which contains all the path waypoints...
-            .GetComponentsInChildren<Waypoint>(); // So we get the children of this object...
+        Vector2Int coordinates;
 
-        path.AddRange(waypoints); // And add them to our path List.
+        if (reset)
+        {
+            coordinates = pathfinder.StartCoordinates;
+        }
+        else
+        {
+            coordinates = gridManager.GetCoordinatesFromPosition(transform.position);
+        }
+
+        StopAllCoroutines();
+        path.Clear();
+        path = pathfinder.GetNewPath(coordinates);
+        StartCoroutine(FollowPath());
     }
 
     private void ReturnToStart()
     {
-        transform.position = path[0].transform.position;
+        transform.position = gridManager.GetPositionFromCoordinates(pathfinder.StartCoordinates);
     }
 
     private void FinishPath()
@@ -47,27 +58,20 @@ public class EnemyMovement : MonoBehaviour
     // This is an example of a coroutine, hence being called with StartCoroutine above. 
     private IEnumerator FollowPath()
     {
-        foreach (Waypoint waypoint in path)
+        // Not using foreach here as it it causes errors when Tile.OnMouseDown() tries to update the path (pathfinder.NotifyRecievers())
+        for (int i = 1; i < path.Count; i++) 
         {
-            if (!started)
-            {
-                started = true;
-                ReturnToStart();
-            }
-            else
-            {
-                Vector3 startPosition = transform.position;
-                Vector3 endPosition = waypoint.transform.position;
-                float travelPercent = 0f;
+            Vector3 startPosition = transform.position;
+            Vector3 endPosition = gridManager.GetPositionFromCoordinates(path[i].coordinates);
 
-                transform.LookAt(endPosition);
+            transform.LookAt(endPosition);
 
-                while (travelPercent < 1f)
-                {
-                    travelPercent += Time.deltaTime * speed;
-                    transform.position = Vector3.Lerp(startPosition, endPosition, travelPercent);
-                    yield return new WaitForEndOfFrame();
-                }
+            float travelPercent = 0f;
+            while (travelPercent < 1f)
+            {
+                travelPercent += Time.deltaTime * speed;
+                transform.position = Vector3.Lerp(startPosition, endPosition, travelPercent);
+                yield return new WaitForEndOfFrame();
             }
         }
 
